@@ -1,66 +1,40 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../data/power_data.dart';
+import '../data/item_data.dart';
 
-class PowerSelectionScreen extends StatefulWidget {
+class ItemItemSelectionScreen extends StatefulWidget {
   final String category;
-  final String dativa;
-  final List<SelectedPower>? initialSelected;
-  final int Function()? getAvailableXP;
-  final bool Function(int xpCost)? canAffordXP;
+  final List<SelectedItem>? initialSelected;
 
-  const PowerSelectionScreen({
+  const ItemItemSelectionScreen({
     super.key,
     required this.category,
-    required this.dativa,
     this.initialSelected,
-    this.getAvailableXP,
-    this.canAffordXP,
   });
 
   @override
-  State<PowerSelectionScreen> createState() => _PowerSelectionScreenState();
+  State<ItemItemSelectionScreen> createState() => _ItemItemSelectionScreenState();
 }
 
-class _PowerSelectionScreenState extends State<PowerSelectionScreen> {
-  late final Set<String> _selectedPowers;
+class _ItemItemSelectionScreenState extends State<ItemItemSelectionScreen> {
+  late final Map<String, int> _selectedItems; // item -> quantidade
 
   @override
   void initState() {
     super.initState();
-    // Inicializa com os poderes já selecionados desta dádiva
-    _selectedPowers = widget.initialSelected != null
-        ? widget.initialSelected!
-            .where((p) => p.category == widget.category && p.dativa == widget.dativa)
-            .map((p) => p.power)
-            .toSet()
-        : <String>{};
-  }
-
-  List<String> get _availablePowers {
-    final categoryData = powerCatalog[widget.category];
-    if (categoryData == null) return [];
-
-    final dativa = categoryData.dativas.firstWhere(
-      (d) => d.name == widget.dativa,
-      orElse: () => const PowerDativa(name: '', powers: []),
-    );
-
-    return dativa.powers;
-  }
-  
-  // Obtém o custo de XP de um poder
-  int _getPowerXPCost(String powerName) {
-    return PowerXPCatalog.getPowerXPCost(widget.category, widget.dativa, powerName);
-  }
-  
-  // Calcula o XP total gasto nos poderes selecionados
-  int _calculateTotalXPCost() {
-    int total = 0;
-    for (final power in _selectedPowers) {
-      total += _getPowerXPCost(power);
+    // Inicializa com os itens já selecionados desta categoria
+    _selectedItems = {};
+    if (widget.initialSelected != null) {
+      for (final item in widget.initialSelected!) {
+        if (item.category == widget.category) {
+          _selectedItems[item.item] = item.quantity;
+        }
+      }
     }
-    return total;
+  }
+
+  List<String> get _availableItems {
+    return itemCatalog[widget.category] ?? [];
   }
 
   @override
@@ -92,7 +66,7 @@ class _PowerSelectionScreenState extends State<PowerSelectionScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      widget.dativa.toUpperCase(),
+                      widget.category.toUpperCase(),
                       style: GoogleFonts.roboto(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
@@ -108,32 +82,20 @@ class _PowerSelectionScreenState extends State<PowerSelectionScreen> {
             Expanded(
               child: ListView.separated(
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                itemCount: _availablePowers.length,
+                itemCount: _availableItems.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 6),
                 itemBuilder: (context, index) {
-                  final power = _availablePowers[index];
-                  final isSelected = _selectedPowers.contains(power);
-                  final xpCost = _getPowerXPCost(power);
-                  final availableXP = widget.getAvailableXP?.call() ?? 999999;
-                  final canAfford = widget.canAffordXP?.call(xpCost) ?? true;
+                  final item = _availableItems[index];
+                  final isSelected = _selectedItems.containsKey(item);
+                  final quantity = _selectedItems[item] ?? 1;
                   
                   return GestureDetector(
                     onTap: () {
                       setState(() {
                         if (isSelected) {
-                          _selectedPowers.remove(power);
+                          _selectedItems.remove(item);
                         } else {
-                          // Validar XP antes de adicionar
-                          if (canAfford || widget.canAffordXP == null) {
-                            _selectedPowers.add(power);
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('XP insuficiente! Necessário: $xpCost XP, Disponível: $availableXP XP (mínimo: -2 XP)'),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                          }
+                          _selectedItems[item] = 1;
                         }
                       });
                     },
@@ -156,37 +118,60 @@ class _PowerSelectionScreenState extends State<PowerSelectionScreen> {
                       child: Row(
                         children: [
                           Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  power,
-                                  style: GoogleFonts.roboto(
-                                    fontSize: 16,
-                                    color: Colors.black,
-                                    fontWeight: isSelected
-                                        ? FontWeight.w700
-                                        : FontWeight.normal,
-                                  ),
-                                ),
-                                if (xpCost > 0)
-                                  Text(
-                                    'Custo: $xpCost XP',
-                                    style: GoogleFonts.roboto(
-                                      fontSize: 12,
-                                      color: canAfford || isSelected
-                                          ? Colors.grey[600]
-                                          : Colors.red,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                              ],
+                            child: Text(
+                              item,
+                              style: GoogleFonts.roboto(
+                                fontSize: 16,
+                                color: Colors.black,
+                                fontWeight: isSelected
+                                    ? FontWeight.w700
+                                    : FontWeight.normal,
+                              ),
                             ),
                           ),
-                          if (isSelected)
+                          if (isSelected) ...[
+                            // Controles de quantidade
+                            IconButton(
+                              icon: const Icon(Icons.remove_circle_outline),
+                              onPressed: () {
+                                setState(() {
+                                  if (quantity > 1) {
+                                    _selectedItems[item] = quantity - 1;
+                                  }
+                                });
+                              },
+                              color: const Color(0xFF5B0A16),
+                              iconSize: 20,
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: const Color(0xFF5B0A16), width: 1.5),
+                              ),
+                              child: Text(
+                                quantity.toString(),
+                                style: GoogleFonts.roboto(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: const Color(0xFF5B0A16),
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.add_circle_outline),
+                              onPressed: () {
+                                setState(() {
+                                  _selectedItems[item] = quantity + 1;
+                                });
+                              },
+                              color: const Color(0xFF5B0A16),
+                              iconSize: 20,
+                            ),
+                          ] else
                             const Icon(
-                              Icons.check_circle,
+                              Icons.check_circle_outline,
                               color: Color(0xFF5B0A16),
                               size: 24,
                             ),
@@ -197,7 +182,7 @@ class _PowerSelectionScreenState extends State<PowerSelectionScreen> {
                 },
               ),
             ),
-            if (_selectedPowers.isNotEmpty)
+            if (_selectedItems.isNotEmpty)
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -215,12 +200,12 @@ class _PowerSelectionScreenState extends State<PowerSelectionScreen> {
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () {
-                        // Retorna lista de SelectedPower
-                        final selected = _selectedPowers.map((power) {
-                          return SelectedPower(
+                        // Retorna lista de SelectedItem com quantidades
+                        final selected = _selectedItems.entries.map((entry) {
+                          return SelectedItem(
                             category: widget.category,
-                            dativa: widget.dativa,
-                            power: power,
+                            item: entry.key,
+                            quantity: entry.value,
                           );
                         }).toList();
                         Navigator.pop(context, selected);
@@ -236,16 +221,16 @@ class _PowerSelectionScreenState extends State<PowerSelectionScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            'Confirmar (${_selectedPowers.length})',
+                            'Confirmar (${_selectedItems.length} itens)',
                             style: GoogleFonts.roboto(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
                               color: Colors.white,
                             ),
                           ),
-                          if (_calculateTotalXPCost() > 0)
+                          if (_selectedItems.values.fold<int>(0, (sum, qty) => sum + qty) > _selectedItems.length)
                             Text(
-                              'Total: ${_calculateTotalXPCost()} XP',
+                              'Total: ${_selectedItems.values.fold<int>(0, (sum, qty) => sum + qty)} unidades',
                               style: GoogleFonts.roboto(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w500,
@@ -264,8 +249,4 @@ class _PowerSelectionScreenState extends State<PowerSelectionScreen> {
     );
   }
 }
-
-
-
-
 

@@ -36,7 +36,7 @@ class SelectedArmament {
         item: parts[2],
       );
     }
-    // Compatibilidade com formato antigo (apenas nome do item)
+    
     return SelectedArmament(
       category: 'Corpo a Corpo',
       subcategory: 'Outros',
@@ -78,7 +78,7 @@ const Map<String, Map<String, List<String>>> armamentCatalog = {
       'Chicote de metal',
     ],
     'ESGRIMA – ESPADAS E SIMILARES': [
-      // Itens serão adicionados aqui
+      
     ],
     'HASTA – AZAGAIAS E ARREMESSÁVEIS': [
       'Atlatl',

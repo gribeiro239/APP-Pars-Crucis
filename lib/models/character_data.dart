@@ -23,6 +23,7 @@ class CharacterData {
   // Perícias
   Map<String, int> skillRanks;
   Map<String, int> skillModifiers;
+  Set<String> favoredSkills; // Perícias favorecidas
   
   // Inventário
   List<String> armamentos;
@@ -71,6 +72,7 @@ class CharacterData {
     this.esp = 0,
     Map<String, int>? skillRanks,
     Map<String, int>? skillModifiers,
+    Set<String>? favoredSkills,
     List<String>? armamentos,
     List<String>? vestimentas,
     List<String>? itens,
@@ -92,6 +94,7 @@ class CharacterData {
     DateTime? updatedAt,
   })  : skillRanks = skillRanks ?? {},
         skillModifiers = skillModifiers ?? {},
+        favoredSkills = favoredSkills ?? {},
         armamentos = armamentos ?? [],
         vestimentas = vestimentas ?? [],
         itens = itens ?? [],
@@ -123,6 +126,7 @@ class CharacterData {
       'esp': esp,
       'skillRanks': skillRanks,
       'skillModifiers': skillModifiers,
+      'favoredSkills': favoredSkills.toList(),
       'armamentos': armamentos,
       'vestimentas': vestimentas,
       'itens': itens,
@@ -165,6 +169,9 @@ class CharacterData {
       esp: json['esp'] ?? 0,
       skillRanks: Map<String, int>.from(json['skillRanks'] ?? {}),
       skillModifiers: Map<String, int>.from(json['skillModifiers'] ?? {}),
+      favoredSkills: (json['favoredSkills'] != null)
+          ? Set<String>.from(json['favoredSkills'])
+          : {},
       armamentos: List<String>.from(json['armamentos'] ?? []),
       vestimentas: List<String>.from(json['vestimentas'] ?? []),
       itens: List<String>.from(json['itens'] ?? []),

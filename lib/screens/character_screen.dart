@@ -12,6 +12,7 @@ import 'package:printing/printing.dart';
 
 import '../data/armament_data.dart';
 import '../data/fighting_style_data.dart';
+import '../data/item_data.dart';
 import '../data/origin_data.dart';
 import '../data/power_data.dart';
 import '../models/character_data.dart';
@@ -19,10 +20,12 @@ import '../services/character_storage.dart';
 import 'armament_category_selection_screen.dart';
 import 'armament_item_selection_screen.dart';
 import 'armament_subcategory_selection_screen.dart';
+import 'item_category_selection_screen.dart';
+import 'item_item_selection_screen.dart';
 import 'beneficios_selection_screen.dart';
 import 'culture_selection_screen.dart';
 import 'fighting_style_selection_screen.dart';
-import 'item_selection_screen.dart';
+import 'item_selection_screen.dart' show ItemSelectionScreen, TechniqueCatalog;
 import 'maleficios_selection_screen.dart';
 import 'origin_selection_screen.dart';
 import 'persona_selection_screen.dart';
@@ -42,6 +45,176 @@ class SkillValue {
     this.n = 0,
     this.m = 0,
   });
+}
+
+/// Tabela de custos de XP para perícias
+class XPCostTable {
+  // XP necessário para alcançar cada nível (acumulado)
+  // [nível] = XP total acumulado
+  static const Map<int, int> commonXPCumulative = {
+    1: 1,
+    2: 3,
+    3: 6,
+    4: 10,
+    5: 15,
+    6: 21,
+    7: 28,
+    8: 36,
+    9: 45,
+    10: 55,
+  };
+  
+  static const Map<int, int> commonFavoredXPCumulative = {
+    1: 0,
+    2: 1,
+    3: 3,
+    4: 6,
+    5: 10,
+    6: 15,
+    7: 21,
+    8: 28,
+    9: 36,
+    10: 45,
+  };
+  
+  static const Map<int, int> difficultXPCumulative = {
+    1: 2,
+    2: 5,
+    3: 9,
+    4: 14,
+    5: 20,
+    6: 27,
+    7: 35,
+    8: 44,
+    9: 54,
+    10: 65,
+  };
+  
+  static const Map<int, int> difficultFavoredXPCumulative = {
+    1: 1,
+    2: 3,
+    3: 6,
+    4: 10,
+    5: 15,
+    6: 21,
+    7: 28,
+    8: 36,
+    9: 45,
+    10: 55,
+  };
+  
+  // XP necessário para avançar PARA um nível específico (incremental - valores entre parênteses na tabela)
+  static const Map<int, int> commonXPPerLevel = {
+    1: 1,   // N1: (1)
+    2: 2,   // N2: (2) - 3-1
+    3: 3,   // N3: (3) - 6-3
+    4: 4,   // N4: (4) - 10-6
+    5: 5,   // N5: (5) - 15-10
+    6: 6,   // N6: (6) - 21-15
+    7: 7,   // N7: (7) - 28-21
+    8: 8,   // N8: (8) - 36-28
+    9: 9,   // N9: (9) - 45-36
+    10: 10, // N10: (10) - 55-45
+  };
+  
+  static const Map<int, int> commonFavoredXPPerLevel = {
+    1: 0,   // N1: (0)
+    2: 1,   // N2: (1) - 1-0
+    3: 2,   // N3: (2) - 3-1
+    4: 3,   // N4: (3) - 6-3
+    5: 4,   // N5: (4) - 10-6
+    6: 5,   // N6: (5) - 15-10
+    7: 6,   // N7: (6) - 21-15
+    8: 7,   // N8: (7) - 28-21
+    9: 8,   // N9: (8) - 36-28
+    10: 9,  // N10: (9) - 45-36
+  };
+  
+  static const Map<int, int> difficultXPPerLevel = {
+    1: 2,   // N1: (2)
+    2: 3,   // N2: (3) - 5-2
+    3: 4,   // N3: (4) - 9-5
+    4: 5,   // N4: (5) - 14-9
+    5: 6,   // N5: (6) - 20-14
+    6: 7,   // N6: (7) - 27-20
+    7: 8,   // N7: (8) - 35-27
+    8: 9,   // N8: (9) - 44-35
+    9: 10,  // N9: (10) - 54-44
+    10: 11, // N10: (11) - 65-54
+  };
+  
+  static const Map<int, int> difficultFavoredXPPerLevel = {
+    1: 1,   // N1: (1)
+    2: 2,   // N2: (2) - 3-1
+    3: 3,   // N3: (3) - 6-3
+    4: 4,   // N4: (4) - 10-6
+    5: 5,   // N5: (5) - 15-10
+    6: 6,   // N6: (6) - 21-15
+    7: 7,   // N7: (7) - 28-21
+    8: 8,   // N8: (8) - 36-28
+    9: 9,   // N9: (9) - 45-36
+    10: 10, // N10: (10) - 55-45
+  };
+  
+  // Para níveis acima de 10, o custo é fixo
+  static const int xpPerLevelAbove10 = 20;
+  static const int favoredXPPerLevelAbove10 = 15;
+  
+  /// Calcula o custo de XP para aumentar uma perícia de um nível para outro
+  /// Retorna o custo incremental (não acumulado)
+  static int getXPCost(int fromLevel, int toLevel, bool isDifficult, bool isFavored) {
+    if (fromLevel >= toLevel || toLevel < 1) return 0;
+    if (fromLevel < 0) fromLevel = 0;
+    
+    int totalCost = 0;
+    
+    // Calcular custo para cada nível entre fromLevel e toLevel
+    for (int level = fromLevel + 1; level <= toLevel; level++) {
+      int levelCost;
+      
+      if (level > 10) {
+        // Níveis acima de 10
+        levelCost = isFavored ? favoredXPPerLevelAbove10 : xpPerLevelAbove10;
+      } else {
+        // Níveis de 1 a 10
+        if (isDifficult) {
+          levelCost = isFavored 
+              ? (difficultFavoredXPPerLevel[level] ?? 0)
+              : (difficultXPPerLevel[level] ?? 0);
+        } else {
+          levelCost = isFavored 
+              ? (commonFavoredXPPerLevel[level] ?? 0)
+              : (commonXPPerLevel[level] ?? 0);
+        }
+      }
+      
+      totalCost += levelCost;
+    }
+    
+    return totalCost;
+  }
+  
+  /// Calcula o custo total de XP para alcançar um nível específico (acumulado)
+  static int getTotalXPCost(int level, bool isDifficult, bool isFavored) {
+    if (level <= 0) return 0;
+    if (level > 10) {
+      // Para níveis acima de 10, calcular: custo até 10 + (nível - 10) * custo por nível
+      int costTo10 = getTotalXPCost(10, isDifficult, isFavored);
+      int levelsAbove10 = level - 10;
+      int costPerLevel = isFavored ? favoredXPPerLevelAbove10 : xpPerLevelAbove10;
+      return costTo10 + (levelsAbove10 * costPerLevel);
+    }
+    
+    if (isDifficult) {
+      return isFavored 
+          ? (difficultFavoredXPCumulative[level] ?? 0)
+          : (difficultXPCumulative[level] ?? 0);
+    } else {
+      return isFavored 
+          ? (commonFavoredXPCumulative[level] ?? 0)
+          : (commonXPCumulative[level] ?? 0);
+    }
+  }
 }
 
 class SkillDefinition {
@@ -165,11 +338,12 @@ class _CharacterScreenState extends State<CharacterScreen> {
 
   final Map<String, int> _skillRanks = {};
   final Map<String, int> _skillModifiers = {};
+  final Set<String> _favoredSkills = {}; // Perícias favorecidas
 
   // Inventário
   final List<SelectedArmament> _armamentos = [];
   final List<String> _vestimentas = [];
-  final List<String> _itens = [];
+  final List<SelectedItem> _itens = [];
 
   // Habilidades
   // Técnicas divididas por categoria
@@ -194,6 +368,11 @@ class _CharacterScreenState extends State<CharacterScreen> {
     super.initState();
     _nameController.addListener(() => setState(() {}));
     
+    // Inicializar XP com valor padrão de 50 se não houver dados carregados
+    if (widget.characterData == null && _xpController.text.isEmpty) {
+      _xpController.text = '50';
+    }
+    
     // Carregar dados se characterData foi fornecido
     if (widget.characterData != null) {
       _loadCharacterData(widget.characterData!);
@@ -215,7 +394,8 @@ class _CharacterScreenState extends State<CharacterScreen> {
 
   void _loadCharacterData(CharacterData data) {
     _nameController.text = data.name;
-    _xpController.text = data.xp;
+    // Se o XP salvo estiver vazio, usar 50 como padrão
+    _xpController.text = data.xp.isEmpty ? '50' : data.xp;
     _ptsController.text = data.pts;
     _origin = data.origin;
     _culture = data.culture;
@@ -235,6 +415,8 @@ class _CharacterScreenState extends State<CharacterScreen> {
     _skillRanks.addAll(data.skillRanks);
     _skillModifiers.clear();
     _skillModifiers.addAll(data.skillModifiers);
+    _favoredSkills.clear();
+    _favoredSkills.addAll(data.favoredSkills);
     
     _armamentos.clear();
     // Converter strings para SelectedArmament
@@ -242,7 +424,8 @@ class _CharacterScreenState extends State<CharacterScreen> {
     _vestimentas.clear();
     _vestimentas.addAll(data.vestimentas);
     _itens.clear();
-    _itens.addAll(data.itens);
+    // Converter strings para SelectedItem
+    _itens.addAll(data.itens.map((i) => SelectedItem.fromStorageString(i)));
     
     _tecnicasCorpoACorpo.clear();
     _tecnicasCorpoACorpo.addAll(data.tecnicasCorpoACorpo);
@@ -322,9 +505,10 @@ class _CharacterScreenState extends State<CharacterScreen> {
       esp: esp,
       skillRanks: Map<String, int>.from(_skillRanks),
       skillModifiers: Map<String, int>.from(_skillModifiers),
+      favoredSkills: Set<String>.from(_favoredSkills),
       armamentos: _armamentos.map((a) => a.toStorageString()).toList(),
       vestimentas: List<String>.from(_vestimentas),
-      itens: List<String>.from(_itens),
+      itens: _itens.map((i) => i.toStorageString()).toList(),
       tecnicasCorpoACorpo: List<String>.from(_tecnicasCorpoACorpo),
       tecnicasDistancia: List<String>.from(_tecnicasDistancia),
       tecnicasOutras: List<String>.from(_tecnicasOutras),
@@ -1302,7 +1486,7 @@ class _CharacterScreenState extends State<CharacterScreen> {
     final allItems = <String>[];
     allItems.addAll(_armamentos.map((a) => 'Armamento: ${a.item}'));
     allItems.addAll(_vestimentas.map((v) => 'Vestimenta: $v'));
-    allItems.addAll(_itens.map((i) => 'Item: $i'));
+    allItems.addAll(_itens.map((i) => 'Item: ${i.item}'));
 
     if (allItems.isEmpty) {
       return List.generate(
@@ -1838,20 +2022,25 @@ class _CharacterScreenState extends State<CharacterScreen> {
     }
   }
 
-  // Retorna o maior nível de perícia para um atributo específico
+  // Retorna o maior valor de atributo gerado por perícias (considerando divisor)
   int _getMaxSkillLevelForAttr(String attrAbbr) {
-    int maxLevel = 0;
+    int maxAttrValue = 0;
     for (final entry in skillCatalog.entries) {
       for (final skill in entry.value) {
         if (skill.attr == attrAbbr) {
           final level = _skillRanks[skill.name] ?? 0;
-          if (level > maxLevel) {
-            maxLevel = level;
+          // Se a perícia tem divisor, o valor do atributo é o nível dividido pelo divisor (arredondado para cima)
+          // Se não tem divisor, o valor do atributo é o próprio nível
+          final attrValue = skill.divisor > 1 
+              ? (level / skill.divisor).ceil()
+              : level;
+          if (attrValue > maxAttrValue) {
+            maxAttrValue = attrValue;
           }
         }
       }
     }
-    return maxLevel;
+    return maxAttrValue;
   }
 
   // Retorna o valor final do atributo (maior entre origem e maior nível de perícia)
@@ -1864,6 +2053,103 @@ class _CharacterScreenState extends State<CharacterScreen> {
   // Retorna o nível de uma perícia específica
   int _getSkillLevel(String skillName) {
     return _skillRanks[skillName] ?? 0;
+  }
+  
+  // Encontra a definição de uma perícia pelo nome
+  SkillDefinition? _getSkillDefinition(String skillName) {
+    for (final entry in skillCatalog.entries) {
+      for (final skill in entry.value) {
+        if (skill.name == skillName) {
+          return skill;
+        }
+      }
+    }
+    return null;
+  }
+  
+  // Calcula o XP total gasto em todas as perícias
+  int _calculateTotalXPSpent() {
+    int totalSpent = 0;
+    for (final entry in skillCatalog.entries) {
+      for (final skill in entry.value) {
+        final level = _skillRanks[skill.name] ?? 0;
+        if (level > 0) {
+          final isFavored = _favoredSkills.contains(skill.name);
+          totalSpent += XPCostTable.getTotalXPCost(level, skill.isDifficult, isFavored);
+        }
+      }
+    }
+    
+    // Adicionar XP gasto em técnicas corpo a corpo
+    for (final techniqueName in _tecnicasCorpoACorpo) {
+      final technique = TechniqueCatalog.corpoACorpoTechniques[techniqueName];
+      if (technique != null) {
+        totalSpent += technique.xpCost;
+      }
+    }
+    
+    // Adicionar XP gasto em técnicas à distância
+    for (final techniqueName in _tecnicasDistancia) {
+      final technique = TechniqueCatalog.distanciaTechniques[techniqueName];
+      if (technique != null) {
+        totalSpent += technique.xpCost;
+      }
+    }
+    
+    // Adicionar XP gasto em estilos de luta e seus golpes
+    for (final style in _estilosLuta) {
+      // XP do estilo
+      final styleTechnique = TechniqueCatalog.fightingStyles[style.styleName];
+      if (styleTechnique != null) {
+        totalSpent += styleTechnique.xpCost;
+      }
+      // XP dos golpes selecionados
+      for (final strike in style.selectedStrikes) {
+        final strikeTechnique = TechniqueCatalog.fightingStyles[strike];
+        if (strikeTechnique != null) {
+          totalSpent += strikeTechnique.xpCost;
+        }
+      }
+    }
+    
+    // Adicionar XP gasto em outras técnicas
+    for (final techniqueName in _tecnicasOutras) {
+      final technique = TechniqueCatalog.outrasTechniques[techniqueName];
+      if (technique != null) {
+        totalSpent += technique.xpCost;
+      }
+    }
+    
+    // Adicionar XP gasto em poderes
+    for (final power in _poderes) {
+      totalSpent += PowerXPCatalog.getPowerXPCost(power.category, power.dativa, power.power);
+    }
+    
+    return totalSpent;
+  }
+  
+  // Calcula o XP disponível (XP total - XP gasto)
+  // Permite XP negativo até -2
+  int _getAvailableXP() {
+    final xpText = _xpController.text.trim();
+    if (xpText.isEmpty) return 50; // Valor padrão
+    final totalXP = int.tryParse(xpText) ?? 50;
+    final spentXP = _calculateTotalXPSpent();
+    final available = totalXP - spentXP;
+    // Permite XP negativo até -2
+    return available;
+  }
+  
+  // Verifica se pode gastar uma quantidade de XP (permite até -2)
+  bool _canAffordXP(int xpCost, int currentAvailableXP) {
+    final newAvailable = currentAvailableXP - xpCost;
+    return newAvailable >= -2; // Permite até -2 de XP negativo
+  }
+  
+  // Atualiza o campo XP mostrando o disponível
+  void _updateXPDisplay() {
+    // Não alteramos o valor do campo XP, apenas atualizamos a UI se necessário
+    setState(() {});
   }
 
   // Calcula Pontos de Vida (PV)
@@ -2055,6 +2341,53 @@ class _CharacterScreenState extends State<CharacterScreen> {
                         icon: Icons.emoji_events,
                         label: 'Experiência (XP)',
                         numbersOnly: true),
+                    // Mostrar XP disponível
+                    Builder(
+                      builder: (context) {
+                        final availableXP = _getAvailableXP();
+                        final isNegative = availableXP < 0;
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          margin: const EdgeInsets.only(top: 8),
+                          decoration: BoxDecoration(
+                            color: isNegative 
+                                ? (availableXP >= -2 ? Colors.orange.shade50 : Colors.red.shade50)
+                                : const Color(0xFFF2E7D6),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: isNegative 
+                                  ? (availableXP >= -2 ? Colors.orange : Colors.red)
+                                  : const Color(0xFF5B0A16), 
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                isNegative ? Icons.warning_amber_rounded : Icons.info_outline, 
+                                size: 16, 
+                                color: isNegative 
+                                    ? (availableXP >= -2 ? Colors.orange.shade900 : Colors.red.shade900)
+                                    : Colors.grey[700],
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'XP Disponível: $availableXP${isNegative ? " (negativo permitido até -2)" : ""}',
+                                  style: GoogleFonts.roboto(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: isNegative 
+                                        ? (availableXP >= -2 ? Colors.orange.shade900 : Colors.red.shade900)
+                                        : Colors.grey[800],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
                     const SizedBox(height: 16), // Aumentado o espaçamento vertical
                     _buildInlineField(
                         controller: _ptsController, icon: Icons.score, label: 'Pontos (PTS)'),
@@ -2517,12 +2850,22 @@ class _CharacterScreenState extends State<CharacterScreen> {
             'VESTIMENTAS',
             onAdd: () => _navigateToItemSelection(context, 'Vestimentas'),
           ),
+          if (_vestimentas.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            ..._buildVestimentasList(_vestimentas),
+            const SizedBox(height: 8),
+          ],
           const SizedBox(height: 10),
           // Seção Itens
           _buildInventorySectionHeader(
             'ITENS',
             onAdd: () => _navigateToItemSelection(context, 'Itens'),
           ),
+          if (_itens.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            ..._buildItemGroups(),
+            const SizedBox(height: 8),
+          ],
           const SizedBox(height: 40),
         ],
       ),
@@ -2571,6 +2914,206 @@ class _CharacterScreenState extends State<CharacterScreen> {
         ],
       ),
     );
+  }
+
+  // Constrói lista de vestimentas
+  List<Widget> _buildVestimentasList(List<String> vestimentas) {
+    return vestimentas.map((item) {
+      return Container(
+        margin: const EdgeInsets.only(bottom: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.88),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFF5B0A16), width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                item,
+                style: GoogleFonts.roboto(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF2F1B10),
+                ),
+              ),
+            ),
+            GestureDetector(
+              onTap: () {
+                setState(() {
+                  vestimentas.remove(item);
+                });
+              },
+              child: Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: Colors.red, width: 1),
+                ),
+                child: const Icon(
+                  Icons.close,
+                  size: 16,
+                  color: Colors.red,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }).toList();
+  }
+  
+  // Constrói lista de itens agrupados por categoria (similar aos armamentos)
+  List<Widget> _buildItemGroups() {
+    // Agrupar itens por categoria
+    final Map<String, List<SelectedItem>> grouped = {};
+    
+    for (final item in _itens) {
+      if (!grouped.containsKey(item.category)) {
+        grouped[item.category] = [];
+      }
+      grouped[item.category]!.add(item);
+    }
+
+    final List<Widget> widgets = [];
+    
+    grouped.forEach((category, items) {
+      // Cabeçalho da categoria
+      widgets.add(
+        Container(
+          margin: const EdgeInsets.only(bottom: 6, top: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: const Color(0xFF5B0A16).withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: const Color(0xFF5B0A16), width: 1.5),
+          ),
+          child: Text(
+            category,
+            style: GoogleFonts.roboto(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF5B0A16),
+            ),
+          ),
+        ),
+      );
+
+      // Lista de itens da categoria
+      items.forEach((item) {
+        widgets.add(
+          Container(
+            margin: const EdgeInsets.only(bottom: 4, left: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.88),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFF5B0A16), width: 1.5),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.03),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    item.item,
+                    style: GoogleFonts.roboto(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF2F1B10),
+                    ),
+                  ),
+                ),
+                // Botões de quantidade
+                IconButton(
+                  icon: const Icon(Icons.remove_circle_outline),
+                  onPressed: () {
+                    setState(() {
+                      if (item.quantity > 1) {
+                        item.quantity--;
+                      }
+                    });
+                  },
+                  color: const Color(0xFF5B0A16),
+                  iconSize: 20,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+                const SizedBox(width: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: const Color(0xFF5B0A16), width: 1.5),
+                  ),
+                  child: Text(
+                    item.quantity.toString(),
+                    style: GoogleFonts.roboto(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF5B0A16),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                IconButton(
+                  icon: const Icon(Icons.add_circle_outline),
+                  onPressed: () {
+                    setState(() {
+                      item.quantity++;
+                    });
+                  },
+                  color: const Color(0xFF5B0A16),
+                  iconSize: 20,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _itens.remove(item);
+                    });
+                  },
+                  child: Container(
+                    width: 24,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: Colors.red, width: 1),
+                    ),
+                    child: const Icon(
+                      Icons.close,
+                      size: 16,
+                      color: Colors.red,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      });
+    });
+
+    return widgets;
   }
 
   List<Widget> _buildArmamentGroups() {
@@ -2735,15 +3278,18 @@ class _CharacterScreenState extends State<CharacterScreen> {
       _navigateToArmamentSelection(context);
       return;
     }
+    
+    // Itens usam navegação hierárquica
+    if (category == 'Itens') {
+      _navigateToItemHierarchicalSelection(context);
+      return;
+    }
 
     // Obtém a lista inicial de itens já selecionados
     List<String>? initialSelected;
     switch (category) {
       case 'Vestimentas':
         initialSelected = _vestimentas;
-        break;
-      case 'Itens':
-        initialSelected = _itens;
         break;
       case 'Técnicas Corpo a Corpo':
         initialSelected = _tecnicasCorpoACorpo;
@@ -2762,6 +3308,8 @@ class _CharacterScreenState extends State<CharacterScreen> {
         builder: (_) => ItemSelectionScreen(
           category: category,
           initialSelected: initialSelected,
+          getAvailableXP: _getAvailableXP,
+          canAffordXP: (xpCost) => _canAffordXP(xpCost, _getAvailableXP()),
         ),
       ),
     ).then((selectedItems) {
@@ -2771,10 +3319,6 @@ class _CharacterScreenState extends State<CharacterScreen> {
             case 'Vestimentas':
               _vestimentas.clear();
               _vestimentas.addAll(selectedItems);
-              break;
-            case 'Itens':
-              _itens.clear();
-              _itens.addAll(selectedItems);
               break;
             case 'Técnicas Corpo a Corpo':
               _tecnicasCorpoACorpo.clear();
@@ -2789,6 +3333,7 @@ class _CharacterScreenState extends State<CharacterScreen> {
               _tecnicasOutras.addAll(selectedItems);
               break;
           }
+          _updateXPDisplay();
         });
       }
     });
@@ -2822,6 +3367,38 @@ class _CharacterScreenState extends State<CharacterScreen> {
         _armamentos.removeWhere((a) => a.category == category);
         // Adiciona os novos
         _armamentos.addAll(selectedArmaments);
+      });
+    }
+  }
+  
+  void _navigateToItemHierarchicalSelection(BuildContext context) async {
+    // Primeiro, seleciona a categoria de item
+    final category = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const ItemCategorySelectionScreen(),
+      ),
+    );
+
+    if (category == null) return;
+
+    // Seleciona os itens da categoria
+    final selectedItems = await Navigator.push<List<SelectedItem>>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ItemItemSelectionScreen(
+          category: category,
+          initialSelected: _itens,
+        ),
+      ),
+    );
+
+    if (selectedItems != null) {
+      setState(() {
+        // Remove itens antigos da mesma categoria
+        _itens.removeWhere((i) => i.category == category);
+        // Adiciona os novos
+        _itens.addAll(selectedItems);
       });
     }
   }
@@ -3009,6 +3586,8 @@ class _CharacterScreenState extends State<CharacterScreen> {
           category: category,
           dativa: dativa,
           initialSelected: _poderes,
+          getAvailableXP: _getAvailableXP,
+          canAffordXP: (xpCost) => _canAffordXP(xpCost, _getAvailableXP()),
         ),
       ),
     );
@@ -3020,6 +3599,7 @@ class _CharacterScreenState extends State<CharacterScreen> {
       _poderes.removeWhere((p) => p.category == category && p.dativa == dativa);
       // Adiciona os novos poderes selecionados
       _poderes.addAll(selectedPowers);
+      _updateXPDisplay();
     });
   }
 
@@ -3146,6 +3726,8 @@ class _CharacterScreenState extends State<CharacterScreen> {
             MaterialPageRoute(
               builder: (_) => FightingStyleSelectionScreen(
                 initialSelected: _estilosLuta,
+                getAvailableXP: _getAvailableXP,
+                canAffordXP: (xpCost) => _canAffordXP(xpCost, _getAvailableXP()),
               ),
             ),
           );
@@ -3153,6 +3735,7 @@ class _CharacterScreenState extends State<CharacterScreen> {
             setState(() {
               _estilosLuta.clear();
               _estilosLuta.addAll(selectedStyles);
+              _updateXPDisplay();
             });
           }
         }
@@ -3334,13 +3917,21 @@ class _CharacterScreenState extends State<CharacterScreen> {
     required double nmColWidth,
   }) {
     final rank = _skillRanks[skill.name] ?? 0;
+    final isFavored = _favoredSkills.contains(skill.name);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.88),
+        color: isFavored 
+            ? const Color(0xFFFFF8DC).withOpacity(0.95) // Cor mais clara para perícias favorecidas
+            : Colors.white.withOpacity(0.88),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFF5B0A16), width: 1.5),
+        border: Border.all(
+          color: isFavored 
+              ? const Color(0xFFDAA520) // Borda dourada para perícias favorecidas
+              : const Color(0xFF5B0A16), 
+          width: isFavored ? 2.0 : 1.5,
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.03),
@@ -3352,18 +3943,66 @@ class _CharacterScreenState extends State<CharacterScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
+          // Checkbox para marcar como favorecida
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                if (isFavored) {
+                  _favoredSkills.remove(skill.name);
+                } else {
+                  _favoredSkills.add(skill.name);
+                }
+              });
+            },
+            child: Container(
+              width: 28,
+              height: 28,
+              margin: const EdgeInsets.only(right: 8),
+              decoration: BoxDecoration(
+                color: isFavored ? const Color(0xFFDAA520) : Colors.white,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(
+                  color: isFavored ? const Color(0xFFB8860B) : const Color(0xFF5B0A16),
+                  width: 1.5,
+                ),
+              ),
+              child: isFavored
+                  ? const Icon(
+                      Icons.star,
+                      size: 18,
+                      color: Colors.white,
+                    )
+                  : null,
+            ),
+          ),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  skill.name.toUpperCase(),
-                  style: GoogleFonts.robotoCondensed(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.8,
-                    color: const Color(0xFF2F1B10),
-                  ),
+                Row(
+                  children: [
+                    Text(
+                      skill.name.toUpperCase(),
+                      style: GoogleFonts.robotoCondensed(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.8,
+                        color: const Color(0xFF2F1B10),
+                      ),
+                    ),
+                    if (isFavored) ...[
+                      const SizedBox(width: 6),
+                      Text(
+                        '(Favorecida)',
+                        style: GoogleFonts.roboto(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          fontStyle: FontStyle.italic,
+                          color: const Color(0xFFB8860B),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),
@@ -3428,6 +4067,11 @@ class _CharacterScreenState extends State<CharacterScreen> {
   }
 
   void _showLevelSelector(BuildContext context, String skillName, int currentRank) {
+    final skillDef = _getSkillDefinition(skillName);
+    if (skillDef == null) return;
+    
+    final isFavored = _favoredSkills.contains(skillName);
+    
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -3435,6 +4079,12 @@ class _CharacterScreenState extends State<CharacterScreen> {
         final scrollController = FixedExtentScrollController(initialItem: currentRank);
         return StatefulBuilder(
           builder: (context, setDialogState) {
+            // Calcular XP necessário para o nível selecionado
+            final xpCost = XPCostTable.getXPCost(currentRank, selectedValue, skillDef.isDifficult, isFavored);
+            final availableXP = _getAvailableXP();
+            // Permite XP negativo até -2
+            final canAfford = selectedValue <= currentRank || _canAffordXP(xpCost, availableXP);
+            
             return AlertDialog(
               backgroundColor: Colors.white,
               title: Text(
@@ -3458,7 +4108,55 @@ class _CharacterScreenState extends State<CharacterScreen> {
                         color: Colors.black87,
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    if (skillDef.isDifficult)
+                      Text(
+                        'Difícil',
+                        style: GoogleFonts.roboto(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF7C1C24),
+                        ),
+                      ),
+                    if (isFavored)
+                      Text(
+                        'Favorecida',
+                        style: GoogleFonts.roboto(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFFB8860B),
+                        ),
+                      ),
+                    const SizedBox(height: 10),
+                    // Mostrar custo de XP
+                    if (selectedValue != currentRank)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: canAfford 
+                              ? (availableXP - xpCost >= 0 ? Colors.green.shade50 : Colors.orange.shade50)
+                              : Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: canAfford 
+                                ? (availableXP - xpCost >= 0 ? Colors.green : Colors.orange)
+                                : Colors.red,
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Text(
+                          selectedValue > currentRank
+                              ? 'Custo: $xpCost XP (Disponível: $availableXP XP${availableXP - xpCost < 0 ? ", ficará: ${availableXP - xpCost} XP" : ""})'
+                              : 'Reembolso: ${-xpCost} XP',
+                          style: GoogleFonts.roboto(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: canAfford 
+                                ? (availableXP - xpCost >= 0 ? Colors.green.shade900 : Colors.orange.shade900)
+                                : Colors.red.shade900,
+                          ),
+                        ),
+                      ),
+                    const SizedBox(height: 10),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -3496,17 +4194,21 @@ class _CharacterScreenState extends State<CharacterScreen> {
                         ),
                         IconButton(
                           icon: const Icon(Icons.add_circle_outline),
-                          onPressed: () {
-                            setDialogState(() {
-                              selectedValue = (selectedValue + 1).clamp(0, 20);
-                              scrollController.animateToItem(
-                                selectedValue,
-                                duration: const Duration(milliseconds: 200),
-                                curve: Curves.easeOut,
-                              );
-                            });
-                          },
-                          color: const Color(0xFF5B0A16),
+                          onPressed: canAfford || selectedValue < currentRank
+                              ? () {
+                                  setDialogState(() {
+                                    selectedValue = (selectedValue + 1).clamp(0, 20);
+                                    scrollController.animateToItem(
+                                      selectedValue,
+                                      duration: const Duration(milliseconds: 200),
+                                      curve: Curves.easeOut,
+                                    );
+                                  });
+                                }
+                              : null,
+                          color: canAfford || selectedValue < currentRank
+                              ? const Color(0xFF5B0A16)
+                              : Colors.grey,
                         ),
                       ],
                     ),
@@ -3556,17 +4258,36 @@ class _CharacterScreenState extends State<CharacterScreen> {
                   ),
                 ),
                 TextButton(
-                  onPressed: () {
-                    setState(() {
-                      _skillRanks[skillName] = selectedValue;
-                    });
-                    scrollController.dispose();
-                    Navigator.of(context).pop();
-                  },
+                  onPressed: canAfford || selectedValue <= currentRank
+                      ? () {
+                          // Validar XP antes de confirmar (permite até -2)
+                          final xpCost = XPCostTable.getXPCost(currentRank, selectedValue, skillDef.isDifficult, isFavored);
+                          final availableXP = _getAvailableXP();
+                          
+                          if (selectedValue > currentRank && !_canAffordXP(xpCost, availableXP)) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('XP insuficiente! Necessário: $xpCost XP, Disponível: $availableXP XP (mínimo: -2 XP)'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                            return;
+                          }
+                          
+                          setState(() {
+                            _skillRanks[skillName] = selectedValue;
+                            _updateXPDisplay();
+                          });
+                          scrollController.dispose();
+                          Navigator.of(context).pop();
+                        }
+                      : null,
                   child: Text(
                     'Confirmar',
                     style: GoogleFonts.roboto(
-                      color: const Color(0xFF5B0A16),
+                      color: (canAfford || selectedValue <= currentRank)
+                          ? const Color(0xFF5B0A16)
+                          : Colors.grey,
                       fontWeight: FontWeight.w700,
                     ),
                   ),

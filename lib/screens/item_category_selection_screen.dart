@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../data/armament_data.dart';
+import '../data/item_data.dart';
 
-class ArmamentCategorySelectionScreen extends StatelessWidget {
-  const ArmamentCategorySelectionScreen({super.key});
+class ItemCategorySelectionScreen extends StatelessWidget {
+  const ItemCategorySelectionScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +34,7 @@ class ArmamentCategorySelectionScreen extends StatelessWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'SELECIONE CATEGORIA DE ARMAMENTO',
+                      'SELECIONE CATEGORIA DE ITEM',
                       style: GoogleFonts.roboto(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
@@ -48,10 +48,10 @@ class ArmamentCategorySelectionScreen extends StatelessWidget {
             Expanded(
               child: ListView.separated(
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                itemCount: armamentCatalog.length,
+                itemCount: itemCatalog.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 6),
                 itemBuilder: (context, index) {
-                  final category = armamentCatalog.keys.elementAt(index);
+                  final category = itemCatalog.keys.elementAt(index);
                   return GestureDetector(
                     onTap: () {
                       Navigator.pop(context, category);
@@ -87,8 +87,4 @@ class ArmamentCategorySelectionScreen extends StatelessWidget {
     );
   }
 }
-
-
-
-
 
