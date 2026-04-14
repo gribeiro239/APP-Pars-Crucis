@@ -1,6 +1,7 @@
 # ParsCrucis App
 
 Aplicativo **Flutter** focado em apoiar sessões de **Parscrucis**: criar, organizar e consultar **Personagens** de forma rápida no celular.
+ 
 
 ## Motivos da criação do app
 
@@ -19,63 +20,35 @@ Aplicativo **Flutter** focado em apoiar sessões de **Parscrucis**: criar, organ
 
 ## Instalação no celular (sem Play Store / App Store)
 
-### Android (APK “por fora”)
+Esta seção é para **usuário final**: você só precisa do arquivo do app já pronto.
 
-Pré-requisitos:
+### Onde conseguir o arquivo do app
 
-- Ter **Flutter** instalado na máquina (para gerar o APK).
-- Ter um celular Android com **Depuração USB** opcional (se for instalar via cabo) e permissão para **instalar apps de fontes desconhecidas**.
+- **Android**: um arquivo `ParsCrucis.apk` (ou `app-release.apk`)
+- **iOS**: um arquivo `ParsCrucis.ipa` (instalado via *sideload*)
 
-Gerar o APK:
+> Normalmente esses arquivos são disponibilizados pelo autor do projeto (ex.: anexados em uma release, enviados por mensagem, ou compartilhados em uma pasta/drive).
 
-```bash
-flutter pub get
-flutter build apk --release
-```
+### Android (instalar APK “por fora”)
 
-O arquivo será gerado em:
+1. Copie o arquivo **`.apk`** para o celular (USB, WhatsApp, Telegram, Drive, etc.).
+2. No Android, abra o arquivo.
+3. Se aparecer bloqueio de segurança, habilite **“Instalar apps desconhecidos”** para o app que você está usando (Arquivos/Chrome/Drive).
+4. Confirme **Instalar**.
 
-- `build/app/outputs/flutter-apk/app-release.apk`
+### iOS (instalar sem App Store)
 
-Instalar no celular:
+No iOS, instalar fora da App Store exige **sideload** (assinatura). Na prática você vai precisar de um computador.
 
-- **Opção A (enviar o arquivo)**: copie o `app-release.apk` para o celular (USB/WhatsApp/Drive) e abra o arquivo para instalar.
-- **Opção B (via USB com adb)**:
+#### Opção A — AltStore (muito comum)
 
-```bash
-adb install -r build/app/outputs/flutter-apk/app-release.apk
-```
+- Instale o **AltStore** no iPhone e use o computador para assinar/instalar o arquivo **`.ipa`**.
+- Observação: com Apple ID gratuita, a assinatura costuma **expirar** e precisa ser renovada periodicamente.
 
-### iOS (sem App Store)
+#### Opção B — Sideloadly (alternativa)
 
-No iOS, instalar fora da App Store geralmente exige **sideload** com assinatura. Existem 2 caminhos comuns:
-
-#### Opção A — Xcode (recomendado para uso próprio)
-
-Pré-requisitos:
-
-- macOS com **Xcode**
-- iPhone conectado por cabo
-- Uma Apple ID (conta gratuita funciona, com limitações de assinatura)
-
-Passos:
-
-```bash
-flutter pub get
-flutter build ios --release
-```
-
-Em seguida:
-
-- Abra `ios/Runner.xcworkspace` no Xcode
-- Selecione seu iPhone como destino
-- Em **Signing & Capabilities**, selecione seu **Team**
-- Clique em **Run**
-
-#### Opção B — Sideload (AltStore/Sideloadly)
-
-- Gere o app iOS (ou use o projeto no Xcode) e assine com sua Apple ID via ferramenta de sideload.
-- Observação: assinaturas com conta gratuita tendem a expirar (precisa reinstalar/reassinar periodicamente).
+- Use o **Sideloadly** no computador para instalar o **`.ipa`** no iPhone usando sua Apple ID.
+- Observação: as mesmas limitações de assinatura podem se aplicar.
 
 ## Desenvolvimento
 
@@ -85,4 +58,5 @@ Rodar em modo debug:
 flutter pub get
 flutter run
 ```
+
 
