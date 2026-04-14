@@ -12,10 +12,10 @@ Aplicativo **Flutter** focado em apoiar sessões de **Parscrucis**: criar, organ
 
 ## Principais utilidades
 
-- **Criar um novo Persona**: fluxo de criação rápido (rota `'/novo'` no app).
-- **Carregar/Listar personagens**: visualizar e abrir personagens já criados (rota `'/carregar'`).
-- **Tela inicial (Splash)**: entrada do app (rota `'/'`).
-- **Informações/Config (Copyright)**: seção informativa do projeto (rota `'/config'`).
+- **Criar um novo Persona**: fluxo de criação rápido.
+- **Carregar/Listar personagens**: visualizar e abrir personagens já criados.
+- **Tela inicial (Splash)**: entrada do app.
+- **Informações/Config (Copyright)**: seção informativa do projeto.
 
 
 ## Instalação no celular (sem Play Store / App Store)
@@ -27,7 +27,7 @@ Esta seção é para **usuário final**: você só precisa do arquivo do app já
 - **Android**: um arquivo `ParsCrucis.apk` (ou `app-release.apk`)
 - **iOS**: um arquivo `ParsCrucis.ipa` (instalado via *sideload*)
 
-> Normalmente esses arquivos são disponibilizados pelo autor do projeto (ex.: anexados em uma release, enviados por mensagem, ou compartilhados em uma pasta/drive).
+> Esses arquivos serão disponibilizados pelo autor do projeto.
 
 ### Android (instalar APK “por fora”)
 
